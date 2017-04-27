@@ -5,7 +5,6 @@ import xmlrpclib
 import requests
 import subprocess
 import ConfigParser
-from selenium import webdriver
 
 
 class Rpc(object):
@@ -30,8 +29,6 @@ class Rpc(object):
 class WeblateAPI(object):
 
     def __init__(self, configuration):
-        self._admin_user = configuration.get('weblate', 'admin_user')
-        self._admin_password = configuration.get('weblate', 'admin_password')
         self._weblate_container = configuration.get('docker', 'name')
 
     def _init_api(self, url, token):
@@ -67,7 +64,7 @@ class WeblateAPI(object):
             slug = '/'.join(slug)
         slug = slug.replace('.git', '').lower()
         for pro in self._api_projects:
-            if slug in pro['web']:
+            if slug in pro['web'].lower():
                 return pro
         return self.create_project(repo, slug)
 
