@@ -50,15 +50,11 @@ class WeblateAPI(object):
         if (not any([pre for pre in ['http://', 'https://'] if pre in repo])
                 and '@' in repo):
             repo = 'http://' + repo.split('@')[1:].pop().replace(':', '/')
-        driver = webdriver.PhantomJS()
-        driver.get(self._url.replace('api', 'admin/login/?next=/admin/trans/project/add/'))
-        driver.find_element_by_id("id_username").send_keys(self._admin_user)
-        driver.find_element_by_id("id_password").send_keys(self._admin_password)
-        driver.find_element_by_id("login-form").submit()
-        driver.find_element_by_id("id_name").send_keys(slug)
-        driver.find_element_by_id("id_web").send_keys(repo)
-        driver.find_element_by_id("project_form").submit()
-        driver.close()
+        cmd = ['docker', 'exec', self._weblate_container,
+               'django-admin', 'shell', '-c',
+               'import weblate.trans.models.project as project;'
+               'project.Project(name=\'{0}\', slug=\'{0}\', web=\'{1}\').save()'.format(slug, repo)]
+        subprocess.check_output(cmd)
         return self._session.get(self._url + '/projects/%s/' % slug).json()
 
     def find_or_create_project(self, project):
@@ -69,7 +65,7 @@ class WeblateAPI(object):
         if any([pre for pre in ['http://', 'https://'] if pre in repo]):
             slug = repo.split('/')[3:]
             slug = '/'.join(slug)
-        slug = slug.replace('.git', '')
+        slug = slug.replace('.git', '').lower()
         for pro in self._api_projects:
             if slug in pro['web']:
                 return pro
@@ -77,8 +73,8 @@ class WeblateAPI(object):
 
     def create_component(self, project, branch):
         cmd = ['docker', 'exec', self._weblate_container, 'django-admin',
-            'import_project', project['slug'], project['web'],
-            branch['branch_name'], '**/i18n/*.po']
+               'import_project', project['slug'], project['web'],
+               branch['branch_name'], '**/i18n/*.po']
         print subprocess.check_output(cmd)
 
     def import_from_runbot(self, project, branches):
