@@ -29,7 +29,9 @@ class Rpc(object):
 class WeblateAPI(object):
 
     def __init__(self, configuration):
-        self._weblate_container = configuration.get('docker', 'name')
+        self._weblate_container = False
+        if configuration.has_section('docker'):
+            self._weblate_container = configuration.get('docker', 'name')
 
     def _init_api(self, url, token):
         self._url = url
@@ -47,10 +49,12 @@ class WeblateAPI(object):
         if (not any([pre for pre in ['http://', 'https://'] if pre in repo])
                 and '@' in repo):
             repo = 'http://' + repo.split('@')[1:].pop().replace(':', '/')
-        cmd = ['docker', 'exec', self._weblate_container,
-               'django-admin', 'shell', '-c',
-               'import weblate.trans.models.project as project;'
-               'project.Project(name=\'{0}\', slug=\'{0}\', web=\'{1}\').save()'.format(slug, repo)]
+        cmd = []
+        if self._weblate_container:
+            cmd.extend(['docker', 'exec', self._weblate_container])
+        cmd.extend(['django-admin', 'shell', '-c',
+                    'import weblate.trans.models.project as project;'
+                    'project.Project(name=\'{0}\', slug=\'{0}\', web=\'{1}\').save()'.format(slug, repo)])
         subprocess.check_output(cmd)
         return self._session.get(self._url + '/projects/%s/' % slug).json()
 
@@ -69,9 +73,12 @@ class WeblateAPI(object):
         return self.create_project(repo, slug)
 
     def create_component(self, project, branch):
-        cmd = ['docker', 'exec', self._weblate_container, 'django-admin',
-               'import_project', project['slug'], project['web'],
-               branch['branch_name'], '**/i18n/*.po']
+        cmd = []
+        if self._weblate_container:
+            cmd.extend(['docker', 'exec', self._weblate_container])
+        cmd.extend(['django-admin',
+                    'import_project', project['slug'], project['web'],
+                    branch['branch_name'], '**/i18n/*.po'])
         print subprocess.check_output(cmd)
 
     def import_from_runbot(self, project, branches):
