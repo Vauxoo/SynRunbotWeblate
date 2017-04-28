@@ -62,9 +62,9 @@ class WeblateAPI(object):
         if any([pre for pre in ['http://', 'https://'] if pre in repo]):
             slug = repo.split('/')[3:]
             slug = '/'.join(slug)
-        slug = slug.replace('.git', '').lower()
+        slug = slug.replace('.git', '')
         for pro in self._api_projects:
-            if slug in pro['web'].lower():
+            if slug in pro['web']:
                 return pro
         return self.create_project(repo, slug)
 
