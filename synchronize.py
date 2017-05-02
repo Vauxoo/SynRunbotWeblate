@@ -55,6 +55,7 @@ class WeblateAPI(object):
         cmd.extend(['django-admin', 'shell', '-c',
                     'import weblate.trans.models.project as project;'
                     'project.Project(name=\'{0}\', slug=\'{0}\', web=\'{1}\').save()'.format(slug, repo)])
+        print cmd
         subprocess.check_output(cmd)
         return self._session.get(self._url + '/projects/%s/' % slug).json()
 
@@ -62,13 +63,13 @@ class WeblateAPI(object):
         repo = project['repo']
         slug = ''
         if '@' in repo:
-            slug = repo.split(':')[1:].pop()
+            slug = repo.split('@')[1:].pop().replace('/', '-')
         if any([pre for pre in ['http://', 'https://'] if pre in repo]):
-            slug = repo.split('/')[3:]
-            slug = '/'.join(slug)
-        slug = slug.replace('.git', '')
+            slug = repo.replace('https://', '').replace('http://', '').split('/')
+            slug = slug[0] + ':' +  slug[1] + '-' + slug[2]
+        slug = slug.replace('.git', '') + '(' + project['branch'] + ')'
         for pro in self._api_projects:
-            if slug in pro['web']:
+            if slug == pro['name']:
                 return pro
         return self.create_project(repo, slug)
 
@@ -79,14 +80,16 @@ class WeblateAPI(object):
         cmd.extend(['django-admin',
                     'import_project', project['slug'], project['web'],
                     branch['branch_name'], '**/i18n/*.po'])
+        print cmd
         print subprocess.check_output(cmd)
 
-    def import_from_runbot(self, project, branches):
-        self._init_api(project['weblate_url'], project['weblate_token'])
-        project = self.find_or_create_project({
-            'repo': project['name']
-        })
+    def import_from_runbot(self, repo, branches):
+        self._init_api(repo['weblate_url'], repo['weblate_token'])
         for branch in branches:
+            project = self.find_or_create_project({
+                'repo': repo['name'],
+                'branch': branch['branch_name']
+            })
             self.create_component(project, branch)
 
     def _request_api(self, url):
