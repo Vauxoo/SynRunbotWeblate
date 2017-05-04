@@ -46,16 +46,14 @@ class WeblateAPI(object):
         self._api_projects = self._session.get(self._url + '/projects/').json()['results']
 
     def create_project(self, repo, name):
-        """slug = slug.replace('/', '-')
-        if (not any([pre for pre in ['http://', 'https://'] if pre in repo])
-                and '@' in repo):
-            repo = 'http://' + repo.split('@')[1:].pop().replace(':', '/')"""
+        slug = name.replace('/', '_').replace(':', '_').replace('.', '_')
+        slug = slug.replace('(', '_').replace(')', '_')
         cmd = []
         if self._weblate_container:
             cmd.extend(['docker', 'exec', self._weblate_container])
         cmd.extend(['django-admin', 'shell', '-c',
                     'import weblate.trans.models.project as project;'
-                    'project.Project(name=\'{0}\', web=\'{1}\').save()'.format(name, repo)])
+                    'project.Project(name=\'{0}\', slug=\'{1}\', web=\'{2}\').save()'.format(name, slug, repo)])
         print cmd
         subprocess.check_output(cmd)
         return self._session.get(self._url + '/projects/%s/' % slug).json()
