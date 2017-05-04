@@ -48,6 +48,9 @@ class WeblateAPI(object):
     def create_project(self, repo, name):
         slug = name.replace('/', '_').replace(':', '_').replace('.', '_')
         slug = slug.replace('(', '_').replace(')', '_')
+        if (not any([pre for pre in ['http://', 'https://'] if pre in repo])
+                and '@' in repo):
+            repo = 'http://' + repo.split('@')[1:].pop().replace(':', '/')
         cmd = []
         if self._weblate_container:
             cmd.extend(['docker', 'exec', self._weblate_container])
@@ -79,7 +82,7 @@ class WeblateAPI(object):
         for pro in self._api_projects:
             if slug == pro['name']:
                 return pro
-        return self.create_project(repo, slug)
+        return self.create_project(project['repo'], slug)
 
     def create_component(self, project, branch):
         cmd = []
