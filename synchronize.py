@@ -1,6 +1,7 @@
 # coding: utf-8
 
 import os
+import re
 import xmlrpclib
 import requests
 import subprocess
@@ -44,30 +45,39 @@ class WeblateAPI(object):
         })
         self._api_projects = self._session.get(self._url + '/projects/').json()['results']
 
-    def create_project(self, repo, slug):
-        slug = slug.replace('/', '-')
+    def create_project(self, repo, name):
+        """slug = slug.replace('/', '-')
         if (not any([pre for pre in ['http://', 'https://'] if pre in repo])
                 and '@' in repo):
-            repo = 'http://' + repo.split('@')[1:].pop().replace(':', '/')
+            repo = 'http://' + repo.split('@')[1:].pop().replace(':', '/')"""
         cmd = []
         if self._weblate_container:
             cmd.extend(['docker', 'exec', self._weblate_container])
         cmd.extend(['django-admin', 'shell', '-c',
                     'import weblate.trans.models.project as project;'
-                    'project.Project(name=\'{0}\', slug=\'{0}\', web=\'{1}\').save()'.format(slug, repo)])
+                    'project.Project(name=\'{0}\', web=\'{1}\').save()'.format(name, repo)])
         print cmd
         subprocess.check_output(cmd)
         return self._session.get(self._url + '/projects/%s/' % slug).json()
 
     def find_or_create_project(self, project):
-        repo = project['repo']
-        slug = ''
-        if '@' in repo:
-            slug = repo.split('@')[1:].pop().replace('/', '-')
-        if any([pre for pre in ['http://', 'https://'] if pre in repo]):
-            slug = repo.replace('https://', '').replace('http://', '').split('/')
-            slug = slug[0] + ':' +  slug[1] + '-' + slug[2]
-        slug = slug.replace('.git', '') + '(' + project['branch'] + ')'
+        slug = project['repo']
+        slug = slug.replace(':', '/')
+        slug = re.sub('.+@', '', slug)
+        slug = re.sub('.git$', '', slug)
+        match_object = re.search(
+            r'(?P<host>[^/]+)/(?P<owner>[^/]+)/(?P<repo>[^/]+)', slug)
+        if match_object:
+            host = match_object.group("host").replace(
+                'https://', '').replace('http://', '')
+            owner = match_object.group("owner")
+            repo = match_object.group("repo")
+            slug = '%(host)s:%(owner)s/%(repo)s' % {
+                'host': host,
+                'owner': owner,
+                'repo': repo
+            }
+        slug = slug + '(' + project['branch'] + ')'
         for pro in self._api_projects:
             if slug == pro['name']:
                 return pro
