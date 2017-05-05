@@ -47,7 +47,7 @@ class WeblateAPI(object):
 
     def create_project(self, repo, name):
         slug = name.replace('/', '_').replace(':', '_').replace('.', '_')
-        slug = slug.replace('(', '_').replace(')', '_')
+        slug = slug.replace(' ', '').replace('(', '_').replace(')', '_')
         if (not any([pre for pre in ['http://', 'https://'] if pre in repo])
                 and '@' in repo):
             repo = 'http://' + repo.split('@')[1:].pop().replace(':', '/')
@@ -66,19 +66,13 @@ class WeblateAPI(object):
         slug = slug.replace(':', '/')
         slug = re.sub('.+@', '', slug)
         slug = re.sub('.git$', '', slug)
-        match_object = re.search(
+        slug = re.sub('^https://', '', slug)
+        slug = re.sub('^http://', '', slug)
+        match = re.search(
             r'(?P<host>[^/]+)/(?P<owner>[^/]+)/(?P<repo>[^/]+)', slug)
-        if match_object:
-            host = match_object.group("host").replace(
-                'https://', '').replace('http://', '')
-            owner = match_object.group("owner")
-            repo = match_object.group("repo")
-            slug = '%(host)s:%(owner)s/%(repo)s' % {
-                'host': host,
-                'owner': owner,
-                'repo': repo
-            }
-        slug = slug + '(' + project['branch'] + ')'
+        if match:
+            slug = ("%(host)s:%(owner)s/%(repo)s (%(branch)s)" %
+                    dict(match.groupdict(), branch=project['branch']))
         for pro in self._api_projects:
             if slug == pro['name']:
                 return pro
