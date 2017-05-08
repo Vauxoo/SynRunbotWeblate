@@ -43,10 +43,14 @@ class WeblateAPI(object):
             'User-Agent': 'syn_runbot_weblate',
             'Authorization': 'Token %s' % self._token
         })
+        self._load_projects()
+
+    def _load_projects(self):
         self._api_projects = self._session.get(self._url + '/projects/').json()['results']
 
     def create_project(self, repo, name):
-        slug = name.replace('/', '_').replace(':', '_').replace('.', '_')
+        slug = name
+        slug = slug.replace('/', '_').replace(':', '_').replace('.', '_')
         slug = slug.replace(' ', '').replace('(', '_').replace(')', '_')
         if (not any([pre for pre in ['http://', 'https://'] if pre in repo])
                 and '@' in repo):
@@ -58,7 +62,8 @@ class WeblateAPI(object):
                     'import weblate.trans.models.project as project;'
                     'project.Project(name=\'{0}\', slug=\'{1}\', web=\'{2}\').save()'.format(name, slug, repo)])
         print cmd
-        subprocess.check_output(cmd)
+        print subprocess.check_output(cmd)
+        self._load_projects()
         return self._session.get(self._url + '/projects/%s/' % slug).json()
 
     def find_or_create_project(self, project):
