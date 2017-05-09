@@ -87,8 +87,16 @@ class WeblateAPI(object):
         cmd = []
         if self._weblate_container:
             cmd.extend(['docker', 'exec', self._weblate_container])
+        repo = project['web']
+        repo = re.sub('^https://', '', repo)
+        repo = re.sub('^http://', '', repo)
+        match = re.search(
+            r'(?P<host>[^/]+)/(?P<owner>[^/]+)/(?P<repo>[^/]+)', repo)
+        if match:
+            repo = ("git@%(host)s:%(owner)s/%(repo)s" %
+                    dict(match.groupdict()))
         cmd.extend(['django-admin',
-                    'import_project', project['slug'], project['web'],
+                    'import_project', project['slug'], repo,
                     branch['branch_name'], '**/i18n/*.po'])
         print cmd
         print subprocess.check_output(cmd)
