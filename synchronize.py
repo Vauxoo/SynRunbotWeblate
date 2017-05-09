@@ -62,7 +62,11 @@ class WeblateAPI(object):
                     'import weblate.trans.models.project as project;'
                     'project.Project(name=\'{0}\', slug=\'{1}\', web=\'{2}\').save()'.format(name, slug, repo)])
         print cmd
-        print subprocess.check_output(cmd)
+        try:
+            print subprocess.check_output(cmd)
+        except subprocess.CalledProcessError:
+            print "Error processing the project '%s'" % (name)
+            return False
         self._load_projects()
         return self._session.get(self._url + '/projects/%s/' % slug).json()
 
@@ -99,7 +103,10 @@ class WeblateAPI(object):
                     'import_project', project['slug'], repo,
                     branch['branch_name'], '**/i18n/*.po'])
         print cmd
-        print subprocess.check_output(cmd)
+        try:
+            print subprocess.check_output(cmd)
+        except subprocess.CalledProcessError:
+            print "Error processing the project '%s' on branch %s" % (project['slug'], branch['branch_name'])
 
     def import_from_runbot(self, repo, branches):
         self._init_api(repo['weblate_url'], repo['weblate_token'])
@@ -108,7 +115,8 @@ class WeblateAPI(object):
                 'repo': repo['name'],
                 'branch': branch['branch_name']
             })
-            self.create_component(project, branch)
+            if project:
+                self.create_component(project, branch)
 
     def _request_api(self, url):
         return self._session.get(self._url + url).json()
