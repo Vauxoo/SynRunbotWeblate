@@ -46,7 +46,9 @@ class WeblateAPI(object):
         self._load_projects()
 
     def _load_projects(self):
-        self._api_projects = self._session.get(self._url + '/projects/').json()['results']
+        response = self._session.get(self._url + '/projects')
+        response.raise_for_status()
+        self._api_projects = response.json()['results']
 
     def create_project(self, repo, name):
         slug = name
@@ -68,7 +70,9 @@ class WeblateAPI(object):
             print "Error processing the project '%s'" % (name)
             return False
         self._load_projects()
-        return self._session.get(self._url + '/projects/%s/' % slug).json()
+        response = self._session.get(self._url + '/projects/%s/' % slug)
+        response.raise_for_status()
+        return response.json()
 
     def find_or_create_project(self, project):
         slug = project['repo']
@@ -119,7 +123,9 @@ class WeblateAPI(object):
                 self.create_component(project, branch)
 
     def _request_api(self, url):
-        return self._session.get(self._url + url).json()
+        response = self._session.get(self._url + url)
+        response.raise_for_status()
+        return response.json()
 
 
 class SynRunbotWeblate(object):
