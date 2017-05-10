@@ -143,6 +143,6 @@ class SynRunbotWeblate(object):
 
 if __name__ == '__main__':
     configuration = ConfigParser.ConfigParser()
-    configuration.readfp(open(os.path.join(os.getcwd(), 'synchronize.cfg')))
+    configuration.readfp(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'synchronize.cfg')))
 
     exit(SynRunbotWeblate(configuration).sync())
