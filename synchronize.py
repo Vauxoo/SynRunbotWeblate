@@ -45,10 +45,15 @@ class WeblateAPI(object):
         })
         self._load_projects()
 
-    def _load_projects(self):
-        response = self._session.get(self._url + '/projects')
+    def _load_projects(self, page=1):
+        if page == 1:
+            self._api_projects = []
+        response = self._session.get('%s/projects/?page=%s' % (self._url, page))
         response.raise_for_status()
-        self._api_projects = response.json()['results']
+        data = response.json()
+        self._api_projects.extend(data['results'])
+        if data['next']:
+            self._load_projects(data['next'].split('=')[-1])
 
     def create_project(self, repo, name):
         slug = name
