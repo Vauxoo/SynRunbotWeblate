@@ -6,6 +6,14 @@ import xmlrpclib
 import requests
 import subprocess
 import ConfigParser
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+ch.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+logger.addHandler(ch)
 
 
 class Rpc(object):
@@ -21,8 +29,10 @@ class Rpc(object):
             self.db, self.username, self.password)
         if not self._user:
             raise Exception('Not login into %s' % self.url)
+        logger.info('Rpc.login > Log in on odoo %s (%s@%s)' % (self.url, self.username, self.db))
 
     def execute(self, *args, **kargs):
+        logger.info('Rpc.execute >  Url : %s, params : %s' % (self.url + 'object', args))
         return xmlrpclib.ServerProxy(self.url + 'object').execute(
             self.db, self._user, self.password, *args, **kargs)
 
@@ -44,6 +54,7 @@ class WeblateAPI(object):
             'Authorization': 'Token %s' % self._token
         })
         self._load_projects()
+        logger.info('WeblateAPI._init_api > Found %s projects' % (len(self._api_projects)))
 
     def _load_projects(self, page=1):
         if page == 1:
@@ -68,11 +79,11 @@ class WeblateAPI(object):
         cmd.extend(['django-admin', 'shell', '-c',
                     'import weblate.trans.models.project as project;'
                     'project.Project(name=\'{0}\', slug=\'{1}\', web=\'{2}\').save()'.format(name, slug, repo)])
-        print cmd
+        logger.info('WeblateAPI.create_project > Create project %s (slug=%s, repo=%s, cmd=%s)' % (name, slug, repo, cmd))
         try:
             print subprocess.check_output(cmd)
         except subprocess.CalledProcessError:
-            print "Error processing the project '%s'" % (name)
+            logger.error('WeblateAPI.create_project > Error processing the project %s' % name)
             return False
         self._load_projects()
         response = self._session.get(self._url + '/projects/%s/' % slug)
@@ -93,6 +104,7 @@ class WeblateAPI(object):
                     dict(match.groupdict(), branch=project['branch']))
         for pro in self._api_projects:
             if slug == pro['name']:
+                logger.info('WeblateAPI.find_or_create_project > Found project %s' % pro['name'])
                 return pro
         return self.create_project(project['repo'], slug)
 
@@ -111,13 +123,15 @@ class WeblateAPI(object):
         cmd.extend(['django-admin',
                     'import_project', project['slug'], repo,
                     branch['branch_name'], '**/i18n/*.po'])
-        print cmd
+        logger.info('WeblateAPI.create_component > Create component %s (cmd=%s)' % (project['slug'], cmd))
         try:
             print subprocess.check_output(cmd)
         except subprocess.CalledProcessError:
-            print "Error processing the project '%s' on branch %s" % (project['slug'], branch['branch_name'])
+            logger.error('WeblateAPI.create_component > Error processing the project %s on branch %s' % (project['slug'], branch['branch_name']))
 
     def import_from_runbot(self, repo, branches):
+        if not branches:
+            return
         self._init_api(repo['weblate_url'], repo['weblate_token'])
         for branch in branches:
             project = self.find_or_create_project({
@@ -148,6 +162,8 @@ class SynRunbotWeblate(object):
             ids = self._rpc.execute('runbot.branch', 'search',
                 [['uses_weblate', '=', True], ['repo_id', '=', repo['id']]])
             branches = self._rpc.execute('runbot.branch', 'read', ids)
+            if not branches:
+                logger.warning('SynRunbotWeblate.sync > Repo no found branches (id=%s, name=%s)' % (repo['id'], repo['name']))
             self._wlapi.import_from_runbot(repo, branches)
         return 0
 
