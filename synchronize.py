@@ -181,7 +181,10 @@ class SynRunbotWeblate(object):
                                'branches (id=%s, name=%s)', repo['id'],
                                repo['name'])
             self._wlapi.import_from_runbot(repo, branches)
+
+    def clean(self):
         cmd = []
+        weblate_container = None
         if configuration.has_section('docker'):
             weblate_container = configuration.get('docker', 'name')
         if weblate_container:
@@ -193,9 +196,8 @@ class SynRunbotWeblate(object):
         try:
             print subprocess.check_output(cmd)
         except subprocess.CalledProcessError:
-            logger.error('SynRunbotWeblate.sync > Error cleaning the temporal '
-                         'folder /app/data/vcs')
-        return 0
+            logger.error('SynRunbotWeblate.sync > Error cleaning the '
+                         'temporal folder /app/data/vcs')
 
 
 if __name__ == '__main__':
@@ -203,4 +205,9 @@ if __name__ == '__main__':
     configuration.readfp(
         open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
              'synchronize.cfg')))
-    exit(SynRunbotWeblate(configuration).sync())
+    synchronizer = SynRunbotWeblate(configuration)
+    try:
+        synchronizer.sync()
+    finally:
+        synchronizer.clean()
+    exit(0)
