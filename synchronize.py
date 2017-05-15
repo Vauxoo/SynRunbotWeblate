@@ -140,19 +140,6 @@ class WeblateAPI(object):
                          'project %s on branch %s', project['slug'],
                          branch['branch_name'])
             return False
-        cmd = []
-        if self._weblate_container:
-            cmd.extend(['docker', 'exec', self._weblate_container])
-        cmd.extend(['find', '/app/data/vcs/%s' % project['slug'],
-                    '-type', 'd', '-name', 'tmp*', '-exec',
-                    'rm', '-rf', '{}', '+'])
-        print cmd
-        try:
-            print subprocess.check_output(cmd)
-        except subprocess.CalledProcessError:
-            logger.error('WeblateAPI.create_component > Error cleaning the '
-                         'project %s on branch %s', project['slug'],
-                         branch['branch_name'])
 
     def import_from_runbot(self, repo, branches):
         if not branches:
@@ -194,6 +181,20 @@ class SynRunbotWeblate(object):
                                'branches (id=%s, name=%s)', repo['id'],
                                repo['name'])
             self._wlapi.import_from_runbot(repo, branches)
+        cmd = []
+        if configuration.has_section('docker'):
+            weblate_container = configuration.get('docker', 'name')
+        if weblate_container:
+            cmd.extend(['docker', 'exec', weblate_container])
+        cmd.extend(['find', '/app/data/vcs',
+                    '-type', 'd', '-name', "tmp*", '-exec',
+                    'rm', '-rf', "{}", '+'])
+        print cmd
+        try:
+            print subprocess.check_output(cmd)
+        except subprocess.CalledProcessError:
+            logger.error('SynRunbotWeblate.sync > Error cleaning the temporal '
+                         'folder /app/data/vcs')
         return 0
 
 
