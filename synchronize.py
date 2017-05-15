@@ -29,10 +29,12 @@ class Rpc(object):
             self.db, self.username, self.password)
         if not self._user:
             raise Exception('Not login into %s' % self.url)
-        logger.info('Rpc.login > Log in on odoo %s (%s@%s)', self.url, self.username, self.db)
+        logger.info('Rpc.login > Log in on odoo %s (%s@%s)', self.url,
+                    self.username, self.db)
 
     def execute(self, *args, **kargs):
-        logger.info('Rpc.execute >  Url : %s, params : %s', self.url + 'object', args)
+        logger.info('Rpc.execute >  Url : %s, params : %s',
+                    self.url + 'object', args)
         return xmlrpclib.ServerProxy(self.url + 'object').execute(
             self.db, self._user, self.password, *args, **kargs)
 
@@ -54,12 +56,14 @@ class WeblateAPI(object):
             'Authorization': 'Token %s' % self._token
         })
         self._load_projects()
-        logger.info('WeblateAPI._init_api > Found %s projects', len(self._api_projects))
+        logger.info('WeblateAPI._init_api > Found %s projects',
+                    len(self._api_projects))
 
     def _load_projects(self, page=1):
         if page == 1:
             self._api_projects = []
-        response = self._session.get('%s/projects/?page=%s' % (self._url, page))
+        response = self._session.get('%s/projects/?page=%s' %
+                                     (self._url, page))
         response.raise_for_status()
         data = response.json()
         self._api_projects.extend(data['results'])
@@ -78,12 +82,15 @@ class WeblateAPI(object):
             cmd.extend(['docker', 'exec', self._weblate_container])
         cmd.extend(['django-admin', 'shell', '-c',
                     'import weblate.trans.models.project as project;'
-                    'project.Project(name=\'{0}\', slug=\'{1}\', web=\'{2}\').save()'.format(name, slug, repo)])
-        logger.info('WeblateAPI.create_project > Create project %s (slug=%s, repo=%s, cmd=%s)', name, slug, repo, cmd)
+                    'project.Project(name=\'{0}\', slug=\'{1}\', web=\'{2}\')'
+                    '.save()'.format(name, slug, repo)])
+        logger.info('WeblateAPI.create_project > Create project %s '
+                    '(slug=%s, repo=%s, cmd=%s)', name, slug, repo, cmd)
         try:
             print subprocess.check_output(cmd)
         except subprocess.CalledProcessError:
-            logger.error('WeblateAPI.create_project > Error processing the project %s', name)
+            logger.error('WeblateAPI.create_project > Error processing the '
+                         'project %s', name)
             return False
         self._load_projects()
         response = self._session.get(self._url + '/projects/%s/' % slug)
@@ -104,7 +111,8 @@ class WeblateAPI(object):
                     dict(match.groupdict(), branch=project['branch']))
         for pro in self._api_projects:
             if slug == pro['name']:
-                logger.info('WeblateAPI.find_or_create_project > Found project %s', pro['name'])
+                logger.info('WeblateAPI.find_or_create_project > Found '
+                            'project %s', pro['name'])
                 return pro
         return self.create_project(project['repo'], slug)
 
@@ -123,11 +131,14 @@ class WeblateAPI(object):
         cmd.extend(['django-admin',
                     'import_project', project['slug'], repo,
                     branch['branch_name'], '**/i18n/*.po'])
-        logger.info('WeblateAPI.create_component > Create component %s (cmd=%s)', project['slug'], cmd)
+        logger.info('WeblateAPI.create_component > Create component %s '
+                    '(cmd=%s)', project['slug'], cmd)
         try:
             print subprocess.check_output(cmd)
         except subprocess.CalledProcessError:
-            logger.error('WeblateAPI.create_component > Error processing the project %s on branch %s', project['slug'], branch['branch_name'])
+            logger.error('WeblateAPI.create_component > Error processing the '
+                         'project %s on branch %s', project['slug'],
+                         branch['branch_name'])
             return False
         cmd = []
         if self._weblate_container:
@@ -139,7 +150,9 @@ class WeblateAPI(object):
         try:
             print subprocess.check_output(cmd)
         except subprocess.CalledProcessError:
-            logger.error('WeblateAPI.create_component > Error cleaning the project %s on branch %s', project['slug'], branch['branch_name'])
+            logger.error('WeblateAPI.create_component > Error cleaning the '
+                         'project %s on branch %s', project['slug'],
+                         branch['branch_name'])
 
     def import_from_runbot(self, repo, branches):
         if not branches:
@@ -167,21 +180,26 @@ class SynRunbotWeblate(object):
 
     def sync(self):
         self._rpc.login()
-        ids = self._rpc.execute('runbot.repo', 'search',
-            [['weblate_token', '!=', ''], ['weblate_url', '!=', '']])
+        ids = self._rpc.execute(
+            'runbot.repo', 'search', [['weblate_token', '!=', ''],
+                                      ['weblate_url', '!=', '']])
         repos = self._rpc.execute('runbot.repo', 'read', ids)
         for repo in repos:
-            ids = self._rpc.execute('runbot.branch', 'search',
-                [['uses_weblate', '=', True], ['repo_id', '=', repo['id']]])
+            ids = self._rpc.execute(
+                'runbot.branch', 'search', [['uses_weblate', '=', True],
+                                            ['repo_id', '=', repo['id']]])
             branches = self._rpc.execute('runbot.branch', 'read', ids)
             if not branches:
-                logger.warning('SynRunbotWeblate.sync > Repo no found branches (id=%s, name=%s)', repo['id'], repo['name'])
+                logger.warning('SynRunbotWeblate.sync > Repo no found '
+                               'branches (id=%s, name=%s)', repo['id'],
+                               repo['name'])
             self._wlapi.import_from_runbot(repo, branches)
         return 0
 
 
 if __name__ == '__main__':
     configuration = ConfigParser.ConfigParser()
-    configuration.readfp(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'synchronize.cfg')))
-
+    configuration.readfp(
+        open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+             'synchronize.cfg')))
     exit(SynRunbotWeblate(configuration).sync())
