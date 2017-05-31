@@ -74,7 +74,7 @@ class WeblateAPI(object):
     def create_project(self, repo, name):
         slug = name
         slug = slug.replace('/', '_').replace(':', '_').replace('.', '_')
-        slug = slug.replace(' ', '').replace('(', '_').replace(')', '_')
+        slug = slug.replace(' ', '').replace('(', '_').replace(')', '')
         if (not any([pre for pre in ['http://', 'https://'] if pre in repo])
                 and '@' in repo):
             repo = 'http://' + repo.split('@')[1:].pop().replace(':', '/')
