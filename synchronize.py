@@ -89,9 +89,11 @@ class WeblateAPI(object):
                     '(slug=%s, repo=%s, cmd=%s)', name, slug, repo, cmd)
         try:
             print subprocess.check_output(cmd)
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as ex:
             logger.error('WeblateAPI.create_project > Error processing the '
                          'project %s', name)
+            logger.error('WeblateAPI.create_project > Exception: %s',
+                         str(ex))
             return False
         self._load_projects()
         response = self._session.get(self._url + '/projects/%s/' % slug)
@@ -136,10 +138,12 @@ class WeblateAPI(object):
                     '(cmd=%s)', project['slug'], cmd)
         try:
             print subprocess.check_output(cmd)
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as ex:
             logger.error('WeblateAPI.create_component > Error processing the '
                          'project %s on branch %s', project['slug'],
                          branch['branch_name'])
+            logger.error('WeblateAPI.create_component > Exception: %s',
+                         str(ex))
             return False
 
     def import_from_runbot(self, repo, branches):
@@ -193,12 +197,15 @@ class SynRunbotWeblate(object):
         cmd.extend(['find', '/app/data/vcs',
                     '-type', 'd', '-name', "tmp*", '-exec',
                     'rm', '-rf', "{}", '+'])
-        print cmd
+        logger.info('SynRunbotWeblate.clean > Cleaning the temporal '
+                    'folder /app/data/vcs (cmd=%s)',  cmd)
         try:
             print subprocess.check_output(cmd)
-        except subprocess.CalledProcessError:
-            logger.error('SynRunbotWeblate.sync > Error cleaning the '
+        except subprocess.CalledProcessError as ex:
+            logger.error('SynRunbotWeblate.clean > Error cleaning the '
                          'temporal folder /app/data/vcs')
+            logger.error('SynRunbotWeblate.clean > Exception: %s',
+                         str(ex))
 
 
 if __name__ == '__main__':
