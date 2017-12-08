@@ -104,7 +104,7 @@ class WeblateAPI(object):
                     '(slug=%s, repo=%s, cmd=%s)', name, slug, repo, cmd)
         try:
             logger.info('WeblateAPI.create_project > cmd="%s" output="%s" ',
-                        cmd, subprocess.check_output(cmd))
+                        cmd, str(subprocess.check_output(cmd)))
         except subprocess.CalledProcessError as ex:
             logger.error('WeblateAPI.create_project > Error processing the '
                          'project %s', name)
@@ -171,7 +171,7 @@ class WeblateAPI(object):
         try:
             logger.info('WeblateAPI._fix_bad_repository > '
                         'cmd="%s" output="%s" ',
-                        cmd, subprocess.check_output(cmd))
+                        cmd, str(subprocess.check_output(cmd)))
         except subprocess.CalledProcessError:
             logger.error('WeblateAPI._fix_bad_repository > '
                          'Error processing the '
@@ -188,7 +188,7 @@ class WeblateAPI(object):
                     'Delete vcs folder "%s" ' % " ".join(cmd))
         try:
             logger.info('WeblateAPI.create_project > cmd="%s" output="%s" ',
-                        cmd, subprocess.check_output(cmd))
+                        cmd, str(subprocess.check_output(cmd)))
         except subprocess.CalledProcessError:
             logger.error('SynRunbotWeblate._fix_bad_repository > '
                          'Error cleaning the '
@@ -213,7 +213,7 @@ class WeblateAPI(object):
                     '(cmd=%s)', project['slug'], cmd)
         try:
             logger.info('WeblateAPI.create_component > cmd="%s" output="%s" ',
-                        cmd, subprocess.check_output(cmd))
+                        cmd, str(subprocess.check_output(cmd)))
         except subprocess.CalledProcessError as ex:
             logger.error('WeblateAPI.create_component > Error processing the '
                          'project %s on branch %s', project['slug'],
@@ -277,7 +277,7 @@ class SynRunbotWeblate(object):
                     'folder /app/data/vcs (cmd=%s)',  cmd)
         try:
             logger.info('SynRunbotWeblate.clean > cmd="%s" output="%s" ',
-                        cmd, subprocess.check_output(cmd))
+                        cmd, str(subprocess.check_output(cmd)))
         except subprocess.CalledProcessError as ex:
             logger.error('SynRunbotWeblate.sync > Error cleaning the '
                          'temporal folder /app/data/vcs')
