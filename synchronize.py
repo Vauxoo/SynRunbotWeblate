@@ -61,15 +61,30 @@ class WeblateAPI(object):
                     len(self._api_projects))
 
     def _load_projects(self, page=1):
+        data = []
         if page == 1:
             self._api_projects = []
         response = self._session.get('%s/projects/?page=%s' %
                                      (self._url, page))
         response.raise_for_status()
         data = response.json()
-        self._api_projects.extend(data['results'])
+        for project in data['results']:
+            project['components'] = self._load_components(project)
+            self._api_projects.append(project)
         if data['next']:
             self._load_projects(data['next'].split('=')[-1])
+
+    def _load_components(self, project, page=1):
+        if page == 1:
+            self._api_components = []
+        response = self._session.get('%s/projects/%s/components?page=%s' %
+                                     (self._url, project['slug'], page))
+        response.raise_for_status()
+        data = response.json()
+        self._api_components.extend(data['results'])
+        if data['next']:
+            self._load_components(data['next'].split('=')[-1])
+        return self._api_components
 
     def create_project(self, repo, name):
         slug = name
@@ -88,7 +103,8 @@ class WeblateAPI(object):
         logger.info('WeblateAPI.create_project > Create project %s '
                     '(slug=%s, repo=%s, cmd=%s)', name, slug, repo, cmd)
         try:
-            print subprocess.check_output(cmd)
+            logger.info('WeblateAPI.create_project > cmd="%s" output="%s" ',
+                        cmd, subprocess.check_output(cmd))
         except subprocess.CalledProcessError as ex:
             logger.error('WeblateAPI.create_project > Error processing the '
                          'project %s', name)
@@ -116,8 +132,67 @@ class WeblateAPI(object):
             if slug == pro['name']:
                 logger.info('WeblateAPI.find_or_create_project > Found '
                             'project %s', pro['name'])
-                return pro
+                return self._check_many_repository(pro)
         return self.create_project(project['repo'], slug)
+
+    def _check_many_repository(self, project):
+        repeated_components = [item for item in project['components']
+                               if item['git_export']]
+        if len(repeated_components) > 1 and repeated_components[0]:
+            base_component = repeated_components[0]
+            for component in repeated_components[1:]:
+                self._fix_bad_repository(project, base_component, component)
+            project['components'] = self._load_components(project)
+        return project
+
+    def _fix_bad_repository(self, project, base_component, component):
+        cmd = []
+        base_repo = ('weblate://' + project['slug'] + '/' +
+                     base_component['slug'])
+        if self._weblate_container:
+            cmd.extend(['docker', 'exec', self._weblate_container])
+        cmd.extend(['django-admin', 'shell', '-c',
+                    'from weblate.trans.models.subproject import SubProject;'
+                    'component = SubProject.objects.get('
+                    'name=\'%(name)s\','
+                    'slug=\'%(slug)s\', branch=\'%(branch)s\');'
+                    'component.repo = \'%(repo)s\';'
+                    'component.git_export = \'\';'
+                    'component.save();' % {
+                        'name': component['name'],
+                        'slug': component['slug'],
+                        'branch': component['branch'],
+                        'repo': base_repo}])
+        logger.info('WeblateAPI._fix_bad_repository > '
+                    'Fix bad repository url git %s '
+                    'base_component %s and component %s '
+                    '(cmd=%s)', project['slug'], base_component['slug'],
+                    component['slug'], cmd)
+        try:
+            logger.info('WeblateAPI._fix_bad_repository > '
+                        'cmd="%s" output="%s" ',
+                        cmd, subprocess.check_output(cmd))
+        except subprocess.CalledProcessError:
+            logger.error('WeblateAPI._fix_bad_repository > '
+                         'Error processing the '
+                         'project %s base_component %s component %s',
+                         project['slug'], base_component['slug'],
+                         component['slug'])
+        cmd = []
+        if self._weblate_container:
+            cmd.extend(['docker', 'exec', self._weblate_container])
+        cmd.extend(['rm', '-rf',
+                    '/app/data/vcs/%s/%s' % (project['slug'],
+                                             component['slug'])])
+        logger.info('WeblateAPI._fix_bad_repository > '
+                    'Delete vcs folder "%s" ' % " ".join(cmd))
+        try:
+            logger.info('WeblateAPI.create_project > cmd="%s" output="%s" ',
+                        cmd, subprocess.check_output(cmd))
+        except subprocess.CalledProcessError:
+            logger.error('SynRunbotWeblate._fix_bad_repository > '
+                         'Error cleaning the '
+                         'repository folder "%s"' % " ".join(cmd))
 
     def create_component(self, project, branch):
         cmd = []
@@ -137,7 +212,8 @@ class WeblateAPI(object):
         logger.info('WeblateAPI.create_component > Create component %s '
                     '(cmd=%s)', project['slug'], cmd)
         try:
-            print subprocess.check_output(cmd)
+            logger.info('WeblateAPI.create_component > cmd="%s" output="%s" ',
+                        cmd, subprocess.check_output(cmd))
         except subprocess.CalledProcessError as ex:
             logger.error('WeblateAPI.create_component > Error processing the '
                          'project %s on branch %s', project['slug'],
@@ -200,9 +276,10 @@ class SynRunbotWeblate(object):
         logger.info('SynRunbotWeblate.clean > Cleaning the temporal '
                     'folder /app/data/vcs (cmd=%s)',  cmd)
         try:
-            print subprocess.check_output(cmd)
+            logger.info('SynRunbotWeblate.clean > cmd="%s" output="%s" ',
+                        cmd, subprocess.check_output(cmd))
         except subprocess.CalledProcessError as ex:
-            logger.error('SynRunbotWeblate.clean > Error cleaning the '
+            logger.error('SynRunbotWeblate.sync > Error cleaning the '
                          'temporal folder /app/data/vcs')
             logger.error('SynRunbotWeblate.clean > Exception: %s',
                          str(ex))
