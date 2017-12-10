@@ -83,7 +83,7 @@ class WeblateAPI(object):
         data = response.json()
         self._api_components.extend(data['results'])
         if data['next']:
-            self._load_components(data['next'].split('=')[-1])
+            self._load_components(project, data['next'].split('=')[-1])
         return self._api_components
 
     def create_project(self, repo, name):
